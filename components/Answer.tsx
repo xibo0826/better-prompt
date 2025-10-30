@@ -185,28 +185,39 @@ export const Answer: FC<AnswerProps> = ({
 
         {/* Right: message history */}
         <aside className="hidden lg:block">
-          <div className="sticky top-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4">
+          <div className="sticky top-4 flex flex-col rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4">
             <div className="mb-2 text-sm uppercase tracking-wide text-zinc-400">
               Your Messages
             </div>
             {userMessages?.length ? (
-              <ul className="max-h-[70vh] space-y-3 overflow-auto pr-1">
-                {userMessages.map((message, index) => (
-                  <li
-                    key={`${message}-${index}`}
-                    className="rounded-xl bg-zinc-900/60 p-3"
-                  >
-                    <div className="text-xs uppercase tracking-wide text-zinc-500">
-                      Question {index + 1}
-                    </div>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-                      {message}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex-1">
+                <ul className="max-h-[60vh] space-y-3 overflow-auto pr-1">
+                  {userMessages.map((message, index) => (
+                    <li
+                      key={`${message}-${index}`}
+                      className="rounded-xl bg-zinc-900/60 p-3"
+                    >
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Question {index + 1}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                        {message}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
               <div className="text-sm text-zinc-500">No messages yet</div>
+            )}
+            {done && hasAnswers && (
+              <button
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-blue-500 px-4 hover:bg-blue-600"
+                onClick={handleResetClick}
+              >
+                <IconReload size={18} />
+                <span className="ml-2">Ask New Question</span>
+              </button>
             )}
           </div>
         </aside>
@@ -237,18 +248,6 @@ export const Answer: FC<AnswerProps> = ({
               <span className="ml-2">{sending ? "Sending..." : "Send"}</span>
             </button>
           </div>
-
-          {done && hasAnswers && (
-            <div className="mt-3 flex justify-center">
-              <button
-                className="inline-flex h-10 items-center justify-center rounded-full bg-blue-500 px-4 hover:bg-blue-600"
-                onClick={handleResetClick}
-              >
-                <IconReload size={18} />
-                <span className="ml-2">Ask New Question</span>
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

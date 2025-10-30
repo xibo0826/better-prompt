@@ -1,10 +1,10 @@
 import { OpenAIStream } from "@/utils/answer";
 
+export const runtime = "edge";
+
 export const config = {
-  runtime: "edge"
+  runtime: "edge",
 };
-
-
 
 const handler = async (req: Request): Promise<Response> => {
   try {
