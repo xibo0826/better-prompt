@@ -272,6 +272,76 @@ const formatSourceLabel = (url: string) => {
   }
 };
 
+const MarkdownCodeBlock: NonNullable<Components["code"]> = ({
+  inline,
+  className,
+  children,
+  ...props
+}) => {
+  const isPromptBlock = !inline && className?.includes("language-prompt");
+  const [copied, setCopied] = useState(false);
+  const codeContent = String(children ?? "").replace(/\n$/, "");
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeoutId = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timeoutId);
+  }, [copied]);
+
+  const handleCopy = async () => {
+    if (!isPromptBlock || !codeContent) return;
+
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard) {
+        console.warn("Clipboard API is not available.");
+        return;
+      }
+      await navigator.clipboard.writeText(codeContent);
+      setCopied(true);
+    } catch (error) {
+      console.error("Failed to copy prompt:", error);
+    }
+  };
+
+  if (inline) {
+    return (
+      <code
+        className="rounded bg-zinc-800 px-1.5 py-[1px] text-sm"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  }
+
+  if (isPromptBlock) {
+    return (
+      <div className="group relative">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="absolute right-0 top-0 inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 shadow hover:bg-zinc-800 focus:outline-none focus-visible:ring focus-visible:ring-blue-500"
+        >
+          {copied ? "Copied!" : "Copy Prompt"}
+        </button>
+        <pre className="overflow-auto rounded-xl bg-zinc-900 p-4 pr-24">
+          <code className={className} {...props}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <pre className="overflow-auto rounded-xl bg-zinc-900 p-4">
+      <code className={className} {...props}>
+        {children}
+      </code>
+    </pre>
+  );
+};
+
 const markdownComponents: Components = {
   a: ({ node, href, ...props }) => {
     const isAnchorLink = href?.startsWith("#") ?? false;
@@ -285,26 +355,7 @@ const markdownComponents: Components = {
       />
     );
   },
-  code: ({ node, inline, className, children, ...props }) => {
-    if (inline) {
-      return (
-        <code
-          className="rounded bg-zinc-800 px-1.5 py-[1px] text-sm"
-          {...props}
-        >
-          {children}
-        </code>
-      );
-    }
-
-    return (
-      <pre className="overflow-auto rounded-xl bg-zinc-900 p-4">
-        <code className={className} {...props}>
-          {children}
-        </code>
-      </pre>
-    );
-  },
+  code: MarkdownCodeBlock,
   table: ({ node, ...props }) => (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-zinc-800" {...props} />

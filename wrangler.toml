@@ -1,0 +1,5 @@
+name = "better-prompt"
+type = "javascript"  # 或 "typescript" 视你的项目而定
+compatibility_date = "2025-10-30"   # 设置为当前或较新日期
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./.vercel/output/static"  # 根据你的构建输出目录
