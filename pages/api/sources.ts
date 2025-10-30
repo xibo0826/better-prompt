@@ -3,10 +3,10 @@ import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom/worker";
 import { cleanSourceText } from "@/utils/sources";
 
-export const runtime = "edge";
+export const runtime = 'edge';
 
 export const config = {
-  runtime: "edge",
+  runtime: 'edge',
 };
 
 const EXCLUDE_DOMAINS = ["google", "facebook", "twitter", "instagram", "youtube", "tiktok"];
