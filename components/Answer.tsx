@@ -1,81 +1,314 @@
 import { SearchQuery } from "@/types";
-import { IconReload } from "@tabler/icons-react";
-import { FC } from "react";
+import { IconLoader2, IconReload, IconSend } from "@tabler/icons-react";
+import type { FC, KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface AnswerProps {
   searchQuery: SearchQuery;
   answer: string;
   done: boolean;
   onReset: () => void;
+  /** User messages shown in the right sidebar (chronological). */
+  userMessages: string[];
+  /** Callback for the bottom input submission. */
+  onSend: (value: string) => void;
+  /** Indicates whether a request is in-flight (disables send button). */
+  sending?: boolean;
 }
 
-export const Answer: FC<AnswerProps> = ({ searchQuery, answer, done, onReset }) => {
+type AnswerEntry = {
+  id: string;
+  question: string;
+  content: string;
+  sourceLinks: string[];
+  isStreaming?: boolean;
+};
+
+export const Answer: FC<AnswerProps> = ({
+  searchQuery,
+  answer,
+  done,
+  onReset,
+  userMessages,
+  onSend,
+  sending = false,
+}) => {
+  const [input, setInput] = useState("");
+  const [answerHistory, setAnswerHistory] = useState<AnswerEntry[]>([]);
+  const lastSavedAnswerRef = useRef<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const streamingEntry = useMemo<AnswerEntry | null>(() => {
+    const trimmed = answer.trim();
+    if (!trimmed || done) return null;
+
+    return {
+      id: "streaming",
+      question: searchQuery.query,
+      content: trimmed,
+      sourceLinks: searchQuery.sourceLinks,
+      isStreaming: true,
+    };
+  }, [answer, done, searchQuery]);
+
+  const answerEntries = useMemo(() => {
+    const entries = [...answerHistory];
+    const trimmed = answer.trim();
+
+    if (streamingEntry) {
+      entries.push(streamingEntry);
+    } else if (done && trimmed) {
+      const lastContent = entries[entries.length - 1]?.content;
+      if (lastContent !== trimmed) {
+        entries.push({
+          id: "pending-final",
+          question: searchQuery.query,
+          content: trimmed,
+          sourceLinks: searchQuery.sourceLinks,
+        });
+      }
+    }
+
+    return entries;
+  }, [answer, answerHistory, done, searchQuery, streamingEntry]);
+
+  useEffect(() => {
+    if (!done) return;
+
+    const trimmed = answer.trim();
+    if (!trimmed || lastSavedAnswerRef.current === trimmed) {
+      return;
+    }
+
+    setAnswerHistory((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${prev.length}`,
+        question: searchQuery.query,
+        content: trimmed,
+        sourceLinks: searchQuery.sourceLinks,
+      },
+    ]);
+
+    lastSavedAnswerRef.current = trimmed;
+  }, [answer, done, searchQuery]);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && input.trim() && !sending) {
+      handleSend();
+    }
+  };
+
+  const handleSend = () => {
+    const value = input.trim();
+    if (!value || sending) return;
+    onSend(value);
+    setInput("");
+  };
+
+  const handleResetClick = () => {
+    setAnswerHistory([]);
+    lastSavedAnswerRef.current = "";
+    onReset();
+  };
+
+  const hasAnswers = answerEntries.length > 0;
+
   return (
-    <div className="max-w-[800px] space-y-4 py-16 px-8 sm:px-24 sm:pt-16 pb-32">
-      <div className="overflow-auto text-2xl sm:text-4xl">{searchQuery.query}</div>
+    <div className="relative min-h-[100dvh]">
+      {/* Two-column layout */}
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 px-4 pb-36 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:px-8">
+        {/* Left: AI answers */}
+        <div className="min-w-0 space-y-8">
+          {!hasAnswers ? (
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 text-sm text-zinc-400">
+              Responses will appear here.
+            </div>
+          ) : (
+            answerEntries.map((entry, index) => (
+              <article
+                key={`${entry.id}-${index}`}
+                className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 shadow-sm shadow-black/20 backdrop-blur-sm"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-blue-500">
+                      Answer {index + 1}
+                    </div>
+                    <h2 className="mt-2 break-words text-lg font-semibold leading-7 text-white">
+                      {entry.question || "Answer"}
+                    </h2>
+                  </div>
+                  {entry.isStreaming && (
+                    <IconLoader2 className="h-5 w-5 animate-spin text-blue-400" />
+                  )}
+                </div>
 
-      <div className="border-b border-zinc-800 pb-4">
-        <div className="text-md text-blue-500">Answer</div>
+                <div className="prose prose-invert mt-4 max-w-none break-words text-base leading-7">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {injectSourceLinks(entry.content, entry.sourceLinks)}
+                  </ReactMarkdown>
+                </div>
 
-        <div className="mt-2 overflow-auto">{replaceSourcesWithLinks(answer, searchQuery.sourceLinks)}</div>
+                {entry.sourceLinks.length > 0 && (
+                  <div className="mt-5 border-t border-zinc-800 pt-4">
+                    <div className="text-xs uppercase tracking-wide text-blue-500">
+                      Sources
+                    </div>
+                    <ul className="mt-2 space-y-1 text-sm text-zinc-400">
+                      {entry.sourceLinks.map((link, linkIndex) => (
+                        <li key={`${entry.id}-source-${linkIndex}`}>
+                          [{linkIndex + 1}]{" "}
+                          <a
+                            className="text-blue-400 hover:underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            href={link}
+                          >
+                            {formatSourceLabel(link)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </article>
+            ))
+          )}
+        </div>
+
+        {/* Right: message history */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4">
+            <div className="mb-2 text-sm uppercase tracking-wide text-zinc-400">
+              Your Messages
+            </div>
+            {userMessages?.length ? (
+              <ul className="max-h-[70vh] space-y-3 overflow-auto pr-1">
+                {userMessages.map((message, index) => (
+                  <li
+                    key={`${message}-${index}`}
+                    className="rounded-xl bg-zinc-900/60 p-3"
+                  >
+                    <div className="text-xs uppercase tracking-wide text-zinc-500">
+                      Question {index + 1}
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                      {message}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-sm text-zinc-500">No messages yet</div>
+            )}
+          </div>
+        </aside>
       </div>
 
-      {done && (
-        <>
-          <div className="border-b border-zinc-800 pb-4">
-            <div className="text-md text-blue-500">Sources</div>
-
-            {searchQuery.sourceLinks.map((source, index) => (
-              <div
-                key={index}
-                className="mt-1 overflow-auto"
-              >
-                {`[${index + 1}] `}
-                <a
-                  className="hover:cursor-pointer hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={source}
-                >
-                  {source.split("//")[1].split("/")[0].replace("www.", "")}
-                </a>
-              </div>
-            ))}
+      {/* Bottom composer */}
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-zinc-800 bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-neutral-950/40">
+        <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask a question or continue the chat..."
+              className="flex-1 rounded-xl border border-zinc-800 bg-neutral-900 px-4 py-3 outline-none placeholder:text-zinc-500"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || sending}
+              className="inline-flex items-center rounded-xl bg-blue-500 px-4 py-3 text-sm font-medium hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {sending ? (
+                <IconLoader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <IconSend size={16} />
+              )}
+              <span className="ml-2">{sending ? "Sending..." : "Send"}</span>
+            </button>
           </div>
 
-          <button
-            className="flex h-10 w-52 items-center justify-center rounded-full bg-blue-500 p-2 hover:cursor-pointer hover:bg-blue-600"
-            onClick={onReset}
-          >
-            <IconReload size={18} />
-            <div className="ml-2">Ask New Question</div>
-          </button>
-        </>
-      )}
+          {done && hasAnswers && (
+            <div className="mt-3 flex justify-center">
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-full bg-blue-500 px-4 hover:bg-blue-600"
+                onClick={handleResetClick}
+              >
+                <IconReload size={18} />
+                <span className="ml-2">Ask New Question</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
 
-const replaceSourcesWithLinks = (answer: string, sourceLinks: string[]) => {
-  const elements = answer.split(/(\[[0-9]+\])/).map((part, index) => {
-    if (/\[[0-9]+\]/.test(part)) {
-      const link = sourceLinks[parseInt(part.replace(/[\[\]]/g, "")) - 1];
-
-      return (
-        <a
-          key={index}
-          className="hover:cursor-pointer text-blue-500"
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {part}
-        </a>
-      );
-    } else {
-      return part;
-    }
+const injectSourceLinks = (content: string, sourceLinks: string[]) => {
+  return content.replace(/\[(\d+)\]/g, (match, indexStr) => {
+    const linkIndex = parseInt(indexStr, 10) - 1;
+    const link = sourceLinks[linkIndex];
+    if (!link) return match;
+    return `[${indexStr}](${link})`;
   });
+};
 
-  return elements;
+const formatSourceLabel = (url: string) => {
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./, "") || url;
+  } catch {
+    return url;
+  }
+};
+
+const markdownComponents: Components = {
+  a: ({ node, href, ...props }) => {
+    const isAnchorLink = href?.startsWith("#") ?? false;
+    return (
+      <a
+        href={href}
+        target={isAnchorLink ? undefined : "_blank"}
+        rel={isAnchorLink ? undefined : "noopener noreferrer"}
+        className="text-blue-400 hover:underline"
+        {...props}
+      />
+    );
+  },
+  code: ({ node, inline, className, children, ...props }) => {
+    if (inline) {
+      return (
+        <code
+          className="rounded bg-zinc-800 px-1.5 py-[1px] text-sm"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <pre className="overflow-auto rounded-xl bg-zinc-900 p-4">
+        <code className={className} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
+  table: ({ node, ...props }) => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-zinc-800" {...props} />
+    </div>
+  ),
 };

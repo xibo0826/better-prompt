@@ -4,6 +4,8 @@ export const config = {
   runtime: "edge"
 };
 
+
+
 const handler = async (req: Request): Promise<Response> => {
   try {
     const { prompt, apiKey } = (await req.json()) as {
@@ -11,7 +13,7 @@ const handler = async (req: Request): Promise<Response> => {
       apiKey: string;
     };
 
-    const stream = await OpenAIStream(prompt, apiKey);
+    const stream = await OpenAIStream(prompt, apiKey, req.headers.get("X-Session-Id") || "");
 
     return new Response(stream);
   } catch (error) {

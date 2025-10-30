@@ -17,6 +17,15 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
+  const getSid = () => {
+    let sid = sessionStorage.getItem("sid");
+    if (!sid) {
+      sid = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)) + Date.now();
+      sessionStorage.setItem("sid", sid);
+    }
+    return sid;
+  };
+
   const handleSearch = async () => {
     if (!query) {
       alert("Please enter a query");
@@ -29,6 +38,7 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
   };
 
   const fetchSources = async () => {
+
     const response = await fetch("/api/sources", {
       method: "POST",
       headers: {
@@ -49,15 +59,17 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
 
   const handleStream = async (sources: Source[]) => {
     try {
-      const prompt = endent`Provide a 2-3 sentence answer to the query based on the following sources. Be original, concise, accurate, and helpful. Cite sources as [1] or [2] or [3] after each sentence (not just the very end) to back up your answer (Ex: Correct: [1], Correct: [2][3], Incorrect: [1, 2]).
-      
-      ${sources.map((source, idx) => `Source [${idx + 1}]:\n${source.text}`).join("\n\n")}
-      `;
+      // const prompt = endent`Provide a 2-3 sentence answer to the query based on the following sources. Be original, concise, accurate, and helpful. Cite sources as [1] or [2] or [3] after each sentence (not just the very end) to back up your answer (Ex: Correct: [1], Correct: [2][3], Incorrect: [1, 2]).
 
+      // ${sources.map((source, idx) => `Source [${idx + 1}]:\n${source.text}`).join("\n\n")}
+      // `;
+      const sid = getSid();
+      const prompt = query;
       const response = await fetch("/api/answer", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-Session-Id": sid,
         },
         body: JSON.stringify({ prompt, apiKey })
       });
@@ -99,32 +111,31 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
     }
   };
 
-  const handleSave = () => {
-    if (apiKey.length !== 51) {
-      alert("Please enter a valid API key.");
-      return;
-    }
+  // const handleSave = () => {
+  //   if (apiKey.length !== 51) {
+  //     alert("Please enter a valid API key.");
+  //     return;
+  //   }
 
-    localStorage.setItem("CLARITY_KEY", apiKey);
+  //   localStorage.setItem("CLARITY_KEY", apiKey);
 
-    setShowSettings(false);
-    inputRef.current?.focus();
-  };
+  //   setShowSettings(false);
+  //   inputRef.current?.focus();
+  // };
 
-  const handleClear = () => {
-    localStorage.removeItem("CLARITY_KEY");
+  // const handleClear = () => {
+  //   localStorage.removeItem("CLARITY_KEY");
 
-    setApiKey("");
-  };
+  //   setApiKey("");
+  // };
 
   useEffect(() => {
-    const CLARITY_KEY = localStorage.getItem("CLARITY_KEY");
-
-    if (CLARITY_KEY) {
-      setApiKey(CLARITY_KEY);
-    } else {
-      setShowSettings(true);
-    }
+    // const CLARITY_KEY = localStorage.getItem("CLARITY_KEY");
+    // if (CLARITY_KEY) {
+    //   setApiKey(CLARITY_KEY);
+    // } else {
+    //   setShowSettings(true);
+    // }
 
     inputRef.current?.focus();
   }, []);
@@ -140,10 +151,10 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
         <div className="mx-auto flex h-full w-full max-w-[750px] flex-col items-center space-y-6 px-3 pt-32 sm:pt-64">
           <div className="flex items-center">
             <IconBolt size={36} />
-            <div className="ml-1 text-center text-4xl">Clarity</div>
+            <div className="ml-1 text-center text-4xl">Better Prompt</div>
           </div>
 
-          {apiKey.length === 51 ? (
+          {true ? (
             <div className="relative w-full">
               <IconSearch className="text=[#D4D4D8] absolute top-3 w-10 left-1 h-6 rounded-full opacity-50 sm:left-3 sm:top-4 sm:h-8" />
 
@@ -151,7 +162,7 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
                 ref={inputRef}
                 className="h-12 w-full rounded-full border border-zinc-600 bg-[#2A2A31] pr-12 pl-11 focus:border-zinc-800 focus:bg-[#18181C] focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:h-16 sm:py-2 sm:pr-16 sm:pl-16 sm:text-lg"
                 type="text"
-                placeholder="Ask anything..."
+                placeholder="What do you want to do..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -168,14 +179,14 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
             <div className="text-center text-[#D4D4D8]">Please enter your OpenAI API key.</div>
           )}
 
-          <button
+          {/* <button
             className="flex cursor-pointer items-center space-x-2 rounded-full border border-zinc-600 px-3 py-1 text-sm text-[#D4D4D8] hover:text-white"
             onClick={() => setShowSettings(!showSettings)}
           >
             {showSettings ? "Hide" : "Show"} Settings
-          </button>
+          </button> */}
 
-          {showSettings && (
+          {/* {showSettings && (
             <>
               <input
                 type="password"
@@ -206,7 +217,7 @@ export const Search: FC<SearchProps> = ({ onSearch, onAnswerUpdate, onDone }) =>
                 </div>
               </div>
             </>
-          )}
+          )} */}
         </div>
       )}
     </>
