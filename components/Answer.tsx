@@ -39,7 +39,7 @@ export const Answer: FC<AnswerProps> = ({
   const [input, setInput] = useState("");
   const [answerHistory, setAnswerHistory] = useState<AnswerEntry[]>([]);
   const lastSavedAnswerRef = useRef<string>("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const streamingEntry = useMemo<AnswerEntry | null>(() => {
     const trimmed = answer.trim();
@@ -96,8 +96,9 @@ export const Answer: FC<AnswerProps> = ({
     lastSavedAnswerRef.current = trimmed;
   }, [answer, done, searchQuery]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && input.trim() && !sending) {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && input.trim() && !sending) {
+      e.preventDefault();
       handleSend();
     }
   };
@@ -227,13 +228,14 @@ export const Answer: FC<AnswerProps> = ({
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-zinc-800 bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-neutral-950/40">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            <input
+            <textarea
               ref={inputRef}
+              rows={2}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question or continue the chat..."
-              className="flex-1 rounded-xl border border-zinc-800 bg-neutral-900 px-4 py-3 outline-none placeholder:text-zinc-500"
+              placeholder="Ask a question or continue the chat... (Shift+Enter for newline)"
+              className="flex-1 resize-y rounded-xl border border-zinc-800 bg-neutral-900 px-4 py-3 text-sm leading-6 outline-none placeholder:text-zinc-500 sm:text-base"
             />
             <button
               onClick={handleSend}

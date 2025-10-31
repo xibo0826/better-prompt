@@ -2,6 +2,8 @@ import { Answer } from "@/components/Answer";
 import { Search } from "@/components/Search";
 import type { SearchQuery, Source } from "@/types";
 import Head from "next/head";
+import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 const defaultQuery: SearchQuery = { query: "", sourceLinks: [] };
@@ -136,6 +138,22 @@ export default function Home() {
         <link rel="icon" href="/favicon.png" />
       </Head>
       <div className="h-screen overflow-auto bg-[#18181C] text-[#D4D4D8]">
+        <div className="pointer-events-none fixed left-6 top-6 z-30">
+          <Link
+            href="/"
+            className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#18181C]/80 px-3 py-2 text-sm font-semibold text-[#D4D4D8] shadow-lg shadow-black/30 backdrop-blur"
+          >
+            <Image
+              src="/favicon.png"
+              alt="Better Prompt logo"
+              width={32}
+              height={32}
+              className="rounded-full"
+              priority
+            />
+            <span>Better Prompt</span>
+          </Link>
+        </div>
         {chatActive ? (
           <Answer
             searchQuery={searchQuery}
