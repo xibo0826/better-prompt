@@ -10,7 +10,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { prompt, apiKey } = (await req.json()) as {
       prompt: string;
-      apiKey: string;
+      apiKey?: string;
     };
 
     const stream = await OpenAIStream(prompt, apiKey, req.headers.get("X-Session-Id") || "");

@@ -1,14 +1,43 @@
 import { OpenAIModel } from "@/types";
+import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
 import { createParser, ParsedEvent, ReconnectInterval } from "eventsource-parser";
 
-export const OpenAIStream = async (prompt: string, apiKey: string, sid: string) => {
+type RuntimeEnv = {
+  N8N_CHAT_COMPLETIONS_URL?: string;
+  N8N_BEARER?: string;
+};
+
+const resolveRuntimeConfig = (apiKey: string | undefined) => {
+  const runtimeEnv = getOptionalRequestContext()?.env as RuntimeEnv | undefined;
+
+  const urlFromBindings = runtimeEnv?.N8N_CHAT_COMPLETIONS_URL ?? process.env.N8N_CHAT_COMPLETIONS_URL;
+  const bearerFromBindings = runtimeEnv?.N8N_BEARER ?? process.env.N8N_BEARER;
+  const trimmedApiKey = apiKey?.trim();
+  const authToken = trimmedApiKey || bearerFromBindings?.trim();
+
+  if (!urlFromBindings) {
+    throw new Error("Missing N8N_CHAT_COMPLETIONS_URL environment variable/binding");
+  }
+
+  if (!authToken) {
+    throw new Error("Missing API credentials: provide apiKey or set N8N_BEARER");
+  }
+
+  return {
+    endpoint: urlFromBindings,
+    authToken,
+  };
+};
+
+export const OpenAIStream = async (prompt: string, apiKey: string | undefined, sid: string) => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const { endpoint, authToken } = resolveRuntimeConfig(apiKey);
 
-  const res = await fetch(`${process.env.N8N_CHAT_COMPLETIONS_URL}`, {
+  const res = await fetch(endpoint, {
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.N8N_BEARER} || ${apiKey}`,
+      Authorization: `Bearer ${authToken}`,
       "X-Session-Id": sid,
     },
     method: "POST",
